@@ -2,18 +2,21 @@
  * emos 每日自动签到 · Loon 脚本
  * ---------------------------------------------------------------
  * 依据 somebyteorg/emos 公开 API 编写：
- *   GET  /api/user/base        基本信息（取用户名）
- *   GET  /api/sign/check       今日是否已签到
- *   PUT  /api/user/sign        签到（?content=留言）
+ *   GET  /api/user/base        基本信息（取用户名；401 即 token 失效）
+ *   PUT  /api/user/sign        签到（?content=留言），429 表示今日已签
+ *   GET  /api/rank/sign        签到排行榜（仅在已签时用来查今日位次）
  *   GET  /api/carrot/current   当前可用萝卜
+ *
+ * 注意：/api/sign/check 在 Postman 里的名称是「判断是否登录」，
+ *      其中 is_sign 表示是否已登录，不能用来判断今日是否已签到。
  *
  * 认证：Bearer <token>，主站与社区镜像共用同一套账号
  * 说明：官方明确「禁止接口轮询、禁止 0 点签到」，本脚本每天只发出 2~4 个请求，
- *      且签到前先查询状态，已签到不再重复提交。
+ *      是否已签到由服务端返回的 429 判定，不额外轮询。
  * ---------------------------------------------------------------
  */
 
-var VERSION = '1.1.0';
+var VERSION = '1.1.1';
 var DEFAULT_BASE = 'https://emos.best|https://emos.club';
 
 /* 签到顺序奖惩（来自 emos wiki「萝卜货币」页）
@@ -176,26 +179,6 @@ function attempt(token, res, cb, si) {
     if (u.username) res.name = u.username;
     if (u.user_id) res.uid = u.user_id;
 
-    checkSign(token, res, cb);
-  });
-}
-
-function checkSign(token, res, cb) {
-  http('get', '/api/sign/check', token, res.base, function (err, code, data) {
-    if (err || code === 0) { res.msg = '网络请求失败'; return cb(res); }
-    if (code === 401 || code === 403) { res.state = 'auth'; res.msg = 'Token 无效或已过期'; return cb(res); }
-
-    var d = json(data);
-    if (!d) { res.msg = '签到状态查询失败（HTTP ' + code + '）'; return cb(res); }
-
-    var signed = (d.is_sign === true || d.is_sign === 1 || d.is_sign === 'true');
-    if (d.user_id && !res.uid) res.uid = d.user_id;
-
-    if (signed) {
-      res.state = 'already';
-      res.msg = '今日已签到';
-      return fetchCarrot(token, res, cb);
-    }
     doSign(token, res, cb);
   });
 }
@@ -217,11 +200,28 @@ function doSign(token, res, cb) {
     if (code === 429) {
       res.state = 'already';
       res.msg = '今日已签到';
-      return fetchCarrot(token, res, cb);
+      return rankOf(token, res, function (r) { fetchCarrot(token, r, cb); });
     }
     if (code === 401 || code === 403) { res.state = 'auth'; res.msg = 'Token 无效或已过期'; return cb(res); }
 
     res.msg = (d && d.message) ? d.message : ('签到失败（HTTP ' + code + '）');
+    cb(res);
+  });
+}
+
+function rankOf(token, res, cb) {
+  http('get', '/api/rank/sign', token, res.base, function (err, code, data) {
+    var arr = json(data);
+    if (arr && arr.length && res.name) {
+      for (var i = 0; i < arr.length; i++) {
+        if (arr[i] && arr[i].username === res.name) {
+          res.index = arr[i].sign_index;
+          res.earn = arr[i].earn_point;
+          res.days = arr[i].continuous_days;
+          break;
+        }
+      }
+    }
     cb(res);
   });
 }
@@ -252,6 +252,11 @@ function detailLine(r) {
     if (r.days !== undefined && r.days !== null) line += '，连续 ' + r.days + ' 天';
   } else if (r.state === 'already') {
     line += '：' + (r.msg || '今日已签到');
+    if (r.index !== undefined && r.index !== null) {
+      line += '（今日第 ' + r.index + ' 名';
+      if (r.earn !== undefined && r.earn !== null) line += '，+' + r.earn + ' 萝卜';
+      line += '）';
+    }
   } else if (r.state === 'auth') {
     line += '：' + (r.msg || 'Token 无效');
   } else {
@@ -312,6 +317,8 @@ function finish(results) {
           : 'emos 签到失败';
     subtitle = one.state === 'ok'
       ? '第 ' + (one.index === undefined ? '?' : one.index) + ' 名 · +' + (one.earn === undefined ? 0 : one.earn) + ' 萝卜'
+      : (one.state === 'already' && one.index !== undefined)
+        ? '今日第 ' + one.index + ' 名'
       : one.state === 'auth'
         ? '请更新插件里的 token'
         : (one.name || one.label || '');
