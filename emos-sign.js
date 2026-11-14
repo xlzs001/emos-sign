@@ -7,14 +7,18 @@
  *   PUT  /api/user/sign        签到（?content=留言）
  *   GET  /api/carrot/current   当前可用萝卜
  *
- * 认证：集合级 bearer，Authorization: Bearer <token>
+ * 认证：Bearer <token>，主站与社区镜像共用同一套账号
  * 说明：官方明确「禁止接口轮询、禁止 0 点签到」，本脚本每天只发出 2~4 个请求，
  *      且签到前先查询状态，已签到不再重复提交。
  * ---------------------------------------------------------------
  */
 
-var VERSION = '1.0.0';
-var DEFAULT_BASE = 'https://emos.best';
+var VERSION = '1.1.0';
+var DEFAULT_BASE = 'https://emos.best|https://emos.club';
+
+/* 签到顺序奖惩（来自 emos wiki「萝卜货币」页）
+ * 基础奖励 +1~5，下列位次额外加减，负数为扣除。 */
+var RANK = { 3: 3, 9: -2, 11: 2, 26: -1, 59: 2, 89: -3, 113: -2, 199: -2, 311: 1, 457: 2 };
 
 /* ------------------------------------------------------------------
  * 读取插件参数（Loon 的 [Argument] 面板）
@@ -42,8 +46,16 @@ var CFG = (function () {
     if (t && tokens.indexOf(t) < 0) tokens.push(t);
   });
 
+  var bases = [];
+  str(a.baseUrl, DEFAULT_BASE).split(/[\s,;，；、|]+/).forEach(function (b) {
+    b = b.trim().replace(/\/+$/, '');
+    if (!b) return;
+    if (!/^https?:\/\//i.test(b)) b = 'https://' + b;
+    if (bases.indexOf(b) < 0) bases.push(b);
+  });
+
   return {
-    base: str(a.baseUrl, DEFAULT_BASE).replace(/\/+$/, ''),
+    bases: bases.length ? bases : [DEFAULT_BASE.split('|')[0]],
     tokens: tokens,
     content: str(a.signContent, '每日签到'),
     notify: bool(a.notify, true),
@@ -71,13 +83,17 @@ function json(data) {
   try { return JSON.parse(String(data)); } catch (e) { return null; }
 }
 
-function post(title, subtitle, body) {
+function host(base) {
+  return String(base).replace(/^https?:\/\//i, '').replace(/\/.*$/, '');
+}
+
+function post(title, subtitle, body, url) {
   if (!CFG.notify) {
     log('[通知已关闭] ' + title + ' / ' + subtitle + ' / ' + body);
     return;
   }
   try {
-    $notification.post(title, subtitle, body, { openUrl: 'https://emos.best' });
+    $notification.post(title, subtitle, body, { openUrl: url || CFG.bases[0] });
   } catch (e) {
     log('通知发送失败: ' + e);
   }
@@ -91,14 +107,14 @@ function store(key, value) {
 }
 
 /* ------------------------------------------------------------------
- * HTTP
+ * HTTP —— base 由调用方传入，便于多线路切换
  * ---------------------------------------------------------------- */
-function http(method, path, token, cb) {
+function http(method, path, token, base, cb) {
   var fn = $httpClient[method];
   if (typeof fn !== 'function') fn = $httpClient.post;
 
   var opts = {
-    url: CFG.base + path,
+    url: base + path,
     headers: {
       'Authorization': 'Bearer ' + token,
       'Accept': 'application/json, text/plain, */*',
@@ -119,13 +135,36 @@ function http(method, path, token, cb) {
   }
 }
 
+/* 只有幂等的 GET 才允许换线路重试，避免 PUT 重复提交 */
+function retryable(err, code) {
+  return (err || code === 0 || code >= 500 || code === 502 || code === 503 || code === 504);
+}
+
 /* ------------------------------------------------------------------
  * 单账号流程
  * ---------------------------------------------------------------- */
-function fetchUser(token, res, cb) {
-  http('get', '/api/user/base', token, function (err, code, data) {
-    if (err || code === 0) { res.msg = '网络请求失败'; return cb(res); }
-    if (code === 401 || code === 403) { res.state = 'auth'; res.msg = 'Token 无效或已过期'; return cb(res); }
+function attempt(token, res, cb, si) {
+  if (si >= CFG.bases.length) {
+    res.msg = '所有站点均无法访问';
+    return cb(res);
+  }
+  var base = CFG.bases[si];
+  res.base = base;
+
+  http('get', '/api/user/base', token, base, function (err, code, data) {
+    if (retryable(err, code)) {
+      if (si + 1 < CFG.bases.length) {
+        log(host(base) + ' 不可用（' + (err ? '网络错误' : 'HTTP ' + code) + '），切换到 ' + host(CFG.bases[si + 1]));
+        return attempt(token, res, cb, si + 1);
+      }
+      res.msg = '网络请求失败';
+      return cb(res);
+    }
+    if (code === 401 || code === 403) {
+      res.state = 'auth';
+      res.msg = 'Token 无效或已过期';
+      return cb(res);
+    }
 
     var u = json(data);
     if (!u) { res.msg = '接口返回异常（HTTP ' + code + '）'; return cb(res); }
@@ -137,7 +176,7 @@ function fetchUser(token, res, cb) {
 }
 
 function checkSign(token, res, cb) {
-  http('get', '/api/sign/check', token, function (err, code, data) {
+  http('get', '/api/sign/check', token, res.base, function (err, code, data) {
     if (err || code === 0) { res.msg = '网络请求失败'; return cb(res); }
     if (code === 401 || code === 403) { res.state = 'auth'; res.msg = 'Token 无效或已过期'; return cb(res); }
 
@@ -158,7 +197,7 @@ function checkSign(token, res, cb) {
 
 function doSign(token, res, cb) {
   var path = '/api/user/sign?content=' + encodeURIComponent(CFG.content);
-  http('put', path, token, function (err, code, data) {
+  http('put', path, token, res.base, function (err, code, data) {
     if (err || code === 0) { res.msg = '网络请求失败'; return cb(res); }
 
     var d = json(data);
@@ -184,7 +223,7 @@ function doSign(token, res, cb) {
 
 function fetchCarrot(token, res, cb) {
   if (!CFG.carrot) return cb(res);
-  http('get', '/api/carrot/current', token, function (err, code, data) {
+  http('get', '/api/carrot/current', token, res.base, function (err, code, data) {
     var d = json(data);
     if (d && d.carrot !== undefined) res.carrot = d.carrot;
     cb(res);
@@ -194,6 +233,13 @@ function fetchCarrot(token, res, cb) {
 /* ------------------------------------------------------------------
  * 汇总与通知
  * ---------------------------------------------------------------- */
+function rankNote(idx) {
+  if (idx === undefined || idx === null) return '';
+  var v = RANK[idx];
+  if (v === undefined) return '';
+  return v < 0 ? '  ⚠ 第 ' + idx + ' 位扣 ' + (-v) : '  ↑ 第 ' + idx + ' 位额外 +' + v;
+}
+
 function detailLine(r) {
   var line = r.name || r.label || '未知账号';
   if (r.state === 'ok') {
@@ -219,12 +265,22 @@ function finish(results) {
     else fail++;
   });
 
-  var body;
+  var body, openUrl = CFG.bases[0];
   if (results.length === 1) {
     var r = results[0];
     body = detailLine(r);
+    if (r.state === 'ok') {
+      var note = rankNote(r.index);
+      if (note) body += '\n' + note.replace(/^\s+/, '');
+    }
     if (r.state === 'auth') body += '\n请到插件设置里更新 token';
-    if (r.state === 'ok' || r.state === 'already') body += '\n点击查看 emos.best';
+    if (r.state === 'ok' || r.state === 'already') {
+      openUrl = r.base || openUrl;
+      body += '\n点击打开 ' + host(openUrl);
+    }
+    if (r.base && results.length === 1 && CFG.bases.length > 1) {
+      body += '\n线路：' + host(r.base);
+    }
   } else {
     body = results.map(function (r, i) { return (i + 1) + '. ' + detailLine(r); }).join('\n');
   }
@@ -242,7 +298,7 @@ function finish(results) {
         ? '请更新插件里的 token'
         : (one.name || one.label || '');
   } else {
-    title = fail + auth === 0 ? 'emos 签到完成' : 'emos 签到部分失败';
+    title = (fail + auth) === 0 ? 'emos 签到完成' : 'emos 签到部分失败';
     subtitle = '共 ' + results.length + ' 个账号 · 成功 ' + ok + ' · 已签 ' + already + ' · 失败 ' + (fail + auth);
   }
 
@@ -252,10 +308,11 @@ function finish(results) {
     date: today(),
     at: new Date().toISOString(),
     version: VERSION,
+    bases: CFG.bases,
     results: results
   }));
 
-  post(title, subtitle, body);
+  post(title, subtitle, body, openUrl);
   $done();
 }
 
@@ -269,7 +326,7 @@ function finish(results) {
     return $done();
   }
 
-  log('开始签到，账号数 ' + CFG.tokens.length + '，站点 ' + CFG.base + '，版本 ' + VERSION);
+  log('开始签到，账号数 ' + CFG.tokens.length + '，线路 ' + CFG.bases.join(' → ') + '，版本 ' + VERSION);
 
   var results = [];
   var i = 0;
@@ -278,11 +335,11 @@ function finish(results) {
     if (i >= CFG.tokens.length) return finish(results);
     var idx = i + 1;
     var token = CFG.tokens[i++];
-    var res = { state: 'fail', msg: '', name: '', label: '账号 ' + idx, carrot: undefined };
-    fetchUser(token, res, function (r) {
+    var res = { state: 'fail', msg: '', name: '', label: '账号 ' + idx, carrot: undefined, base: '' };
+    attempt(token, res, function (r) {
       results.push(r);
       next();
-    });
+    }, 0);
   }
 
   next();
