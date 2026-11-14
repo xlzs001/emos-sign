@@ -59,13 +59,21 @@ Token 获取：登录 emos.best → 开发者工具 Network → 任意 `/api/` �
 ## 运行逻辑
 
 ```
-GET  /api/user/base        取用户名；此步失败才会切换到下一条线路
-GET  /api/sign/check       今天签过就跳过
-PUT  /api/user/sign        签到，返回排名 / 萝卜 / 连续天数
+GET  /api/user/base        取用户名；401 即 token 失效，此步失败才会切换线路
+PUT  /api/user/sign        签到；返回 429「重复签到」即为今日已签
+GET  /api/rank/sign        仅已签时调用，反查当日位次
 GET  /api/carrot/current   可选，查余额
 ```
 
-单账号最多 4 个请求，每天只跑一次，不轮询。`is_sign: true` 或 429 都判定为「今日已签到」。
+单账号最多 4 个请求，每天只跑一次，不轮询。
+
+> ⚠️ `/api/sign/check` 虽然在 Postman 里叫 sign，但它的真实名称是**「判断是否登录」**，`is_sign` 表示是否已登录，跟今天有没有签到无关。用它判断会导致每次都误判为「已签到」而跳过。
+
+## 更新记录
+
+- **v1.1.1** 修正签到判断：改为直接 `PUT /api/user/sign`，以 429 判定已签；已签时通过 `/api/rank/sign` 反查当日位次
+- **v1.1.0** 多线路自动切换（emos.best → emos.club）、位次奖惩提示
+- **v1.1.0** 修正 `timeout` 单位（毫秒），此前 20ms 导致全部请求超时
 
 ## 注意
 
