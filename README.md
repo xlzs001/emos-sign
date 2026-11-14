@@ -10,8 +10,8 @@ Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条�
 
 | 线路 | 地址 |
 |---|---|
-| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-v112.plugin` |
-| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v112-raw.plugin` |
+| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-v113.plugin` |
+| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v113-raw.plugin` |
 
 两条线路是配套的：jsDelivr 版插件的 `script-path` 指向 jsDelivr 上的脚本，raw 版指向 raw 上的脚本，不要混用。
 
@@ -60,6 +60,8 @@ Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条�
 
 Token 获取：登录 emos.best → 开发者工具 Network → 任意 `/api/` 请求 → 请求头 `Authorization: Bearer` 后面那串。
 
+> **填写注意**：字段值里不要出现英文逗号 `,` 或方括号 `[]`。Loon 用它们切分 `argument=[...]`，一旦混入会导致后续参数错位（比如开关读不到）。多账号请用分号 `;`。
+
 ## 运行逻辑
 
 ```
@@ -69,7 +71,7 @@ GET  /api/pay/getUserSign?user_id=   仅已签时调用，取最近一次签到�
 GET  /api/carrot/current             可选，查余额
 ```
 
-单账号最多 4 个请求，每天只跑一次，不轮询。
+单账号最多 4 个请求（PUT 超时时多 1 次核对），每天只跑一次，不轮询。
 
 > ⚠️ 两个曾经踩过的坑：
 >
@@ -105,6 +107,7 @@ solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）
 
 ## 更新记录
 
+- **v1.1.3** 修正 cron 表达式缺双引号（定时任务可能不触发）、超时 60→300 秒；PUT 超时后自动核对是否其实已签；已签也显示位次奖惩；时区解析不再依赖引擎对 ISO 的宽容度
 - **v1.1.2** 用 `getUserSign` 替代排行榜查位次；通知新增签到时间、萝卜数、连续天数；429 时校验记录是否真属于今天
 - **v1.1.1** 修正签到判断：改为直接 `PUT /api/user/sign`，以 429 判定已签
 - **v1.1.0** 多线路自动切换（emos.best → emos.club）、位次奖惩提示
