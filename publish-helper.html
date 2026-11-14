@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>emos 签到插件 · GitHub 订阅打包</title>
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#fff; --line:#e5e5ea; --txt:#1c1c1e; --txt2:#6e6e73; --txt3:#9a9aa0;
+    --accent:#ff6c37; --accent-soft:#fff2ec; --green:#34c759; --red:#ff3b30;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);padding:26px 18px 70px;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .page{max-width:900px;margin:0 auto}
+  header{text-align:center;margin-bottom:24px}
+  .logo{width:52px;height:52px;border-radius:12px;margin:0 auto 12px;background:#1c1c1e;color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:23px;font-weight:700;
+    letter-spacing:-1px;box-shadow:0 8px 20px rgba(0,0,0,.18)}
+  h1{font-size:21px;margin:0 0 6px;letter-spacing:-.4px}
+  .sub{color:var(--txt2);font-size:13px}
+  .card{background:var(--card);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.05);overflow:hidden;margin-bottom:16px}
+  .card-h{padding:12px 16px;font-size:13px;font-weight:600;color:var(--txt2);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;background:#fafafc}
+  .card-h .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .card-b{padding:14px 16px}
+  .fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  @media(max-width:700px){.fields{grid-template-columns:1fr}}
+  .f label{display:block;font-size:11.5px;color:var(--txt3);margin-bottom:5px;letter-spacing:.3px}
+  input,select{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:13px;
+    font-family:inherit;color:var(--txt);background:#fff;outline:none;transition:.15s}
+  input:focus,select:focus{border-color:#ffab8c;box-shadow:0 0 0 3px rgba(255,108,55,.10)}
+  .out{margin-top:14px;background:#1c1c1e;border-radius:10px;padding:10px 12px;position:relative}
+  .out .l{font-size:10.5px;color:#8e8e93;letter-spacing:.5px;margin-bottom:5px}
+  .out code{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#f2f2f7;word-break:break-all;line-height:1.6}
+  .out .cp{position:absolute;right:10px;top:9px;background:#3a3a3c;color:#fff;border:0;border-radius:6px;
+    font-size:10.5px;padding:3px 8px;cursor:pointer;font-family:inherit}
+  .out .cp:hover{background:#48484a}
+  .warn{color:#ffd60a;font-size:11.5px;margin-top:6px}
+  pre.plugin{margin:0;background:#f6f7f9;border:1px solid var(--line);border-radius:10px;padding:13px 15px;
+    font-family:ui-monospace,Menlo,monospace;font-size:11.8px;line-height:1.7;max-height:300px;overflow:auto;
+    white-space:pre-wrap;word-break:break-all;color:#24292f}
+  .btn{border:0;border-radius:9px;padding:9px 16px;font-size:13px;font-family:inherit;cursor:pointer;font-weight:550}
+  .btn.primary{background:var(--accent);color:#fff}
+  .btn.primary:hover{background:#f25a24}
+  .btn.ghost{background:#f0f0f4;color:var(--txt)}
+  .btn.ghost:hover{background:#e8e8ee}
+  .btnrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .steps{counter-reset:s}
+  .step{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f2f2f4}
+  .step:last-child{border-bottom:0}
+  .step .n{width:22px;height:22px;flex:0 0 22px;border-radius:50%;background:var(--accent-soft);color:#c2410c;
+    font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:2px}
+  .step b{font-size:13.5px;display:block;margin-bottom:3px}
+  .step p{margin:0;font-size:12.5px;color:var(--txt2);line-height:1.65}
+  code.inline{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#f4f4f6;border:1px solid #ebebef;
+    padding:1px 5px;border-radius:4px;color:#b3341a;word-break:break-all}
+  .faq{font-size:12.8px;color:var(--txt2)}
+  .faq b{color:var(--txt);display:block;margin-top:10px;font-size:13px}
+  .faq b:first-child{margin-top:0}
+  footer{text-align:center;color:var(--txt3);font-size:11.5px;margin-top:24px}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="logo">G</div>
+    <h1>用 GitHub 订阅插件</h1>
+    <div class="sub">填一下仓库信息，下面会生成可以直接上传的插件文件</div>
+  </header>
+
+  <div class="card">
+    <div class="card-h"><span class="dot"></span>① 你的仓库信息</div>
+    <div class="card-b">
+      <div class="fields">
+        <div class="f"><label>GitHub 用户名</label><input id="user" placeholder="例如 puz-zle" value=""></div>
+        <div class="f"><label>仓库名（建议 emos-sign）</label><input id="repo" placeholder="emos-sign" value="emos-sign"></div>
+        <div class="f"><label>分支</label><input id="branch" placeholder="main" value="main"></div>
+        <div class="f"><label>加速线路</label>
+          <select id="cdn">
+            <option value="raw">raw.githubusercontent.com（官方）</option>
+            <option value="jsdelivr">cdn.jsdelivr.net（国内更快）</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="out">
+        <div class="l">脚本地址（这个文件先上传）</div>
+        <code id="jsUrl">—</code>
+        <button class="cp" data-t="jsUrl">复制</button>
+      </div>
+
+      <div class="out">
+        <div class="l">插件订阅地址（Loon 里粘这个）</div>
+        <code id="pluginUrl">—</code>
+        <button class="cp" data-t="pluginUrl">复制</button>
+        <div class="warn" id="cdnHint" style="display:none">jsDelivr 首次访问会缓存，刚上传的文件可能要等几分钟</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="dot"></span>② 生成的 emos-sign.plugin</div>
+    <div class="card-b">
+      <pre class="plugin" id="preview">在上方填写用户名后自动生成</pre>
+      <div class="btnrow">
+        <button class="btn primary" id="dl">下载 emos-sign.plugin</button>
+        <button class="btn ghost" id="cpPlugin">复制全文</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="dot"></span>③ 具体步骤</div>
+    <div class="card-b steps">
+      <div class="step"><div class="n">1</div><div>
+        <b>建一个公开仓库</b>
+        <p>打开 <code class="inline">github.com/new</code> → 仓库名填 <code class="inline">emos-sign</code> → 选 <b>Public</b> → Create repository。<br>必须是 Public，Private 仓库 Loon 拉不到（会 404）。</p>
+      </div></div>
+      <div class="step"><div class="n">2</div><div>
+        <b>上传 emos-sign.js</b>
+        <p>仓库页 → Add file → Upload files → 把 <code class="inline">emos-sign.js</code> 拖进去 → Commit changes。<br>文件名保持 <code class="inline">emos-sign.js</code>。</p>
+      </div></div>
+      <div class="step"><div class="n">3</div><div>
+        <b>上传插件文件</b>
+        <p>点上面的「下载 emos-sign.plugin」，然后同样 Add file → Upload files 传上去。<br>没有下载成功的话，用「复制全文」→ Add file → Create new file → 文件名写 <code class="inline">emos-sign.plugin</code> → 粘贴 → Commit。</p>
+      </div></div>
+      <div class="step"><div class="n">4</div><div>
+        <b>在 Loon 里订阅</b>
+        <p>Loon → 配置 → 插件 → 右上角 <code class="inline">+</code> → 从 URL 添加 → 粘「插件订阅地址」→ 保存。<br>然后进插件填 Token，方法同之前。</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><span class="dot"></span>④ 排错</div>
+    <div class="card-b faq">
+      <b>导入提示 404 / 找不到文件</b>
+      仓库是不是 Private；用户名、仓库名、分支、文件名有没有打错；刚建仓库时分支可能叫 master 而不是 main，去仓库首页确认一下。
+      <b>插件导进来了，但定时不跑 / 日志报脚本加载失败</b>
+      说明 <code class="inline">script-path</code> 那个地址不对。打开「脚本地址」，浏览器直接访问应该能看到 JS 源码而不是 404。
+      <b>raw 地址打不开</b>
+      换 cdn.jsdelivr.net 线路重新生成，把两个文件都传好后等几分钟再试。
+      <b>改了脚本想生效</b>
+      Loon 对远程脚本有缓存：插件列表里删掉重新添加，或换个文件名（比如 emos-sign-v2.js）并在插件里同步改地址。
+    </div>
+  </div>
+
+  <footer>本地生成，不会上传任何内容到服务器 · 你的用户名只用于拼接地址</footer>
+</div>
+
+<script>
+var PLUGIN = [
+'#!name = emos 自动签到',
+'#!desc = emos.best 每日自动签到 · 支持多账号、自定义执行时间、签到结果通知',
+'#!author = 依据 somebyteorg/emos 公开 API 制作',
+'#!tag = 签到,工具',
+'#!system = ios,macos',
+'#!loon_version = 3.2.1(733)',
+'#!date = 2026-11-14',
+'#!icon = https://emos.best/favicon.ico',
+'',
+'[Argument]',
+'token = input,"",tag=① 登录凭证 Token,desc=必填。登录 emos.best 后打开开发者工具或抓包 取请求头 Authorization 中 Bearer 后面的字符串 多个账号用英文分号隔开',
+'baseUrl = input,"https://emos.best|https://emos.club",tag=② 站点地址,desc=可填多条线路用竖线分隔 主站不通会自动切到下一个 emos.club 与主站同一账号 签到状态互通',
+'cronExpression = input,"0 8 * * *",tag=③ 每日执行时间,desc=5 段 cron 分 时 日 月 周 默认每天 08:00 官方禁止 0 点签到 建议 7 点到 10 点之间错峰',
+'signContent = input,"每日签到",tag=④ 签到留言,desc=接口说明称填写内容可随机获得更多萝卜 留空则为「每日签到」 不要包含逗号或方括号',
+'notify = switch,true,tag=⑤ 签到结果通知',
+'showCarrot = switch,true,tag=显示萝卜余额,desc=签到后额外查询一次可用萝卜 会多 1 个请求',
+'',
+'[Script]',
+'cron "{cronExpression}" script-path=%%SCRIPT%%,tag="emos 定时签到",argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true',
+'generic script-path=%%SCRIPT%%,tag="emos 立即签到",img-url=checkmark.seal.fill,argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true',
+''
+].join('\n');
+
+var $ = function(id){ return document.getElementById(id); };
+
+function clean(v){
+  return (v || '').trim().replace(/^https?:\/\/(www\.)?github\.com\//i, '').replace(/^\/+|\/+$/g, '');
+}
+
+function urls(){
+  var user = clean($('user').value).split('/')[0] || '';
+  var repo = clean($('repo').value) || 'emos-sign';
+  var branch = clean($('branch').value) || 'main';
+  if(!user) return null;
+  if($('cdn').value === 'jsdelivr'){
+    return {
+      js: 'https://cdn.jsdelivr.net/gh/' + user + '/' + repo + '@' + branch + '/emos-sign.js',
+      plugin: 'https://cdn.jsdelivr.net/gh/' + user + '/' + repo + '@' + branch + '/emos-sign.plugin'
+    };
+  }
+  return {
+    js: 'https://raw.githubusercontent.com/' + user + '/' + repo + '/' + branch + '/emos-sign.js',
+    plugin: 'https://raw.githubusercontent.com/' + user + '/' + repo + '/' + branch + '/emos-sign.plugin'
+  };
+}
+
+function render(){
+  var u = urls();
+  $('cdnHint').style.display = ($('cdn').value === 'jsdelivr') ? 'block' : 'none';
+
+  if(!u){
+    $('jsUrl').textContent = '—';
+    $('pluginUrl').textContent = '—';
+    $('preview').textContent = '在上方填写用户名后自动生成';
+    return;
+  }
+  $('jsUrl').textContent = u.js;
+  $('pluginUrl').textContent = u.plugin;
+  $('preview').textContent = PLUGIN.split('%%SCRIPT%%').join(u.js);
+}
+
+['user','repo','branch','cdn'].forEach(function(id){
+  $(id).addEventListener('input', render);
+  $(id).addEventListener('change', render);
+});
+
+function copyText(txt, btn){
+  var label = btn.textContent;
+  function ok(){
+    btn.textContent = '已复制';
+    setTimeout(function(){ btn.textContent = label; }, 1200);
+  }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, txt.length);
+    var done = false;
+    try { done = document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    if(done) ok();
+    else { btn.textContent = '请手动选中复制'; setTimeout(function(){ btn.textContent = label; }, 2000); }
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+
+document.querySelectorAll('.cp').forEach(function(b){
+  b.onclick = function(){ copyText($(b.dataset.t).textContent, b); };
+});
+
+$('cpPlugin').onclick = function(){
+  copyText($('preview').textContent, $('cpPlugin'));
+};
+
+$('dl').onclick = function(){
+  var u = urls();
+  if(!u){ alert('先填 GitHub 用户名'); return; }
+  var txt = PLUGIN.split('%%SCRIPT%%').join(u.js);
+  var blob = new Blob([txt], { type: 'text/plain;charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'emos-sign.plugin';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){ URL.revokeObjectURL(a.href); }, 2000);
+};
+
+render();
+</script>
+</body>
+</html>
