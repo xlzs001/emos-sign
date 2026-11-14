@@ -16,7 +16,7 @@
  * ---------------------------------------------------------------
  */
 
-var VERSION = '1.1.2';
+var VERSION = '1.1.3';
 var DEFAULT_BASE = 'https://emos.best|https://emos.club';
 
 /* 签到顺序奖惩（来自 emos wiki「萝卜货币」页）
@@ -143,7 +143,7 @@ function http(method, path, token, base, cb) {
 
 /* 只有幂等的 GET 才允许换线路重试，避免 PUT 重复提交 */
 function retryable(err, code) {
-  return (err || code === 0 || code >= 500 || code === 502 || code === 503 || code === 504);
+  return !!err || code === 0 || code >= 500;
 }
 
 /* ------------------------------------------------------------------
@@ -186,7 +186,19 @@ function attempt(token, res, cb, si) {
 function doSign(token, res, cb) {
   var path = '/api/user/sign?content=' + encodeURIComponent(CFG.content);
   http('put', path, token, res.base, function (err, code, data) {
-    if (err || code === 0) { res.msg = '网络请求失败'; return cb(res); }
+    if (err || code === 0) {
+      res.msg = '网络请求失败';
+      return lastSign(token, res, function (r) {
+        if (r.today === true) {
+          r.state = 'ok';
+          r.msg = '请求超时，但已确认签到成功';
+        } else {
+          r.at = undefined; r.index = undefined;
+          r.earn = undefined; r.days = undefined; r.today = undefined;
+        }
+        fetchCarrot(token, r, cb);
+      });
+    }
 
     var d = json(data);
 
@@ -234,12 +246,22 @@ function nowStr() {
 }
 
 function parseLocal(s) {
-  var str = String(s);
-  if (/Z$/.test(str) || /\+00:00$/.test(str)) return new Date(str);
-  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!s) return null;
+  var m = String(s).trim().match(
+    /^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?)?\s*(Z|[+-]\d{2}:?\d{2})?$/);
   if (!m) return null;
-  return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10),
-                  m[4] ? parseInt(m[4], 10) : 0, m[5] ? parseInt(m[5], 10) : 0);
+  var Y = +m[1], M = +m[2] - 1, D = +m[3];
+  var h = m[4] ? +m[4] : 0, mi = m[5] ? +m[5] : 0;
+  var tz = m[7];
+  if (tz) {
+    var off = 0;
+    if (tz !== 'Z') {
+      var sg = tz.charAt(0) === '-' ? -1 : 1;
+      off = sg * (parseInt(tz.substr(1, 2), 10) * 60 + parseInt(tz.substr(3, 2), 10));
+    }
+    return new Date(Date.UTC(Y, M, D, h, mi) - off * 60000);
+  }
+  return new Date(Y, M, D, h, mi);
 }
 
 function fmtTime(s) {
@@ -288,7 +310,7 @@ function detailLine(r, compact) {
     if (r.index === undefined || r.index === null) {
       line += '：' + (r.msg || '今日已签到');
     } else if (r.today === false) {
-      line += '：今日无签到记录，上次 ' + when;
+      line += '：今日无签到记录，上次 ' + (when || '未知时间');
       line += '（+' + (r.earn === undefined ? 0 : r.earn) + ' 萝卜';
       if (r.days !== undefined && r.days !== null) line += '，连续 ' + r.days + ' 天';
       line += '）';
@@ -335,7 +357,7 @@ function finish(results) {
   if (results.length === 1) {
     var r = results[0];
     body = detailLine(r, false);
-    if (r.state === 'ok') {
+    if (r.state === 'ok' || r.state === 'already') {
       var note = rankNote(r.index);
       if (note) body += '\n' + note.replace(/^\s+/, '');
     }
@@ -359,18 +381,18 @@ function finish(results) {
           : one.state === 'auth' ? 'emos 签到失败 · Token 失效'
           : 'emos 签到失败';
     subtitle = one.state === 'ok'
-      ? '第 ' + (one.index === undefined ? '?' : one.index) + ' 名 · +' + (one.earn === undefined ? 0 : one.earn) + ' 萝卜'
+      ? '第 ' + (one.index == null ? '?' : one.index) + ' 名 · +' + (one.earn == null ? 0 : one.earn) + ' 萝卜'
         + (one.days !== undefined && one.days !== null ? ' · 连续 ' + one.days + ' 天' : '')
-      : (one.state === 'already' && one.index !== undefined)
+      : (one.state === 'already' && one.index != null)
         ? (one.today === false
-            ? '上次 ' + fmtTime(one.at) + ' · +' + (one.earn === undefined ? 0 : one.earn) + ' 萝卜'
+            ? '上次 ' + fmtTime(one.at) + ' · +' + (one.earn == null ? 0 : one.earn) + ' 萝卜'
             : '今日第 ' + one.index + ' 名 · +' + (one.earn === undefined ? 0 : one.earn) + ' 萝卜'
               + (one.days !== undefined && one.days !== null ? ' · 连续 ' + one.days + ' 天' : ''))
       : one.state === 'already'
         ? '服务端返回重复，未拿到记录'
       : one.state === 'auth'
         ? '请更新插件里的 token'
-        : (one.name || one.label || '');
+        : (one.msg || one.name || one.label || '');
   } else {
     title = (fail + auth) === 0 ? 'emos 签到完成' : 'emos 签到部分失败';
     subtitle = '共 ' + results.length + ' 个账号 · 成功 ' + ok + ' · 已签 ' + already + ' · 失败 ' + (fail + auth);
