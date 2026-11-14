@@ -121,13 +121,16 @@ function http(method, path, token, base, cb) {
       'Content-Type': 'application/json',
       'User-Agent': 'emos-sign/' + VERSION + ' (Loon; iPhone)'
     },
-    timeout: 20
+    timeout: 15000
   };
 
   try {
     fn.call($httpClient, opts, function (err, resp, data) {
       var status = 0;
       if (resp) status = resp.status || resp.statusCode || 0;
+      if (err) {
+        log('请求失败 ' + String(method).toUpperCase() + ' ' + opts.url + ' → ' + (err && err.message ? err.message : String(err)));
+      }
       cb(err, status, data || '');
     });
   } catch (e) {
@@ -153,11 +156,13 @@ function attempt(token, res, cb, si) {
 
   http('get', '/api/user/base', token, base, function (err, code, data) {
     if (retryable(err, code)) {
+      var why = err ? ('连接失败: ' + (err && err.message ? err.message : String(err))) : ('HTTP ' + code);
       if (si + 1 < CFG.bases.length) {
-        log(host(base) + ' 不可用（' + (err ? '网络错误' : 'HTTP ' + code) + '），切换到 ' + host(CFG.bases[si + 1]));
+        log(host(base) + ' 不可用（' + why + '），切换到 ' + host(CFG.bases[si + 1]));
         return attempt(token, res, cb, si + 1);
       }
-      res.msg = '网络请求失败';
+      res.msg = '网络请求失败（' + why + '）';
+      res.netFail = true;
       return cb(res);
     }
     if (code === 401 || code === 403) {
@@ -256,6 +261,19 @@ function detailLine(r) {
   return line;
 }
 
+function probe(cb) {
+  var done = false;
+  function back(ok) { if (!done) { done = true; cb(ok); } }
+  try {
+    setTimeout(function () { back(null); }, 16000);
+    $httpClient.get({ url: 'https://www.apple.com/library/test/success.html', timeout: 15000 },
+      function (err, resp) {
+        var st = resp ? (resp.status || resp.statusCode || 0) : 0;
+        back(!err && st > 0 && st < 500);
+      });
+  } catch (e) { back(false); }
+}
+
 function finish(results) {
   var ok = 0, already = 0, fail = 0, auth = 0;
   results.forEach(function (r) {
@@ -300,6 +318,20 @@ function finish(results) {
   } else {
     title = (fail + auth) === 0 ? 'emos 签到完成' : 'emos 签到部分失败';
     subtitle = '共 ' + results.length + ' 个账号 · 成功 ' + ok + ' · 已签 ' + already + ' · 失败 ' + (fail + auth);
+  }
+
+  var allNetFail = results.length > 0 && results.every(function (r) { return r.netFail; });
+
+  if (allNetFail) {
+    return probe(function (ok) {
+      body += ok === true ? '\n\n诊断：外网正常，是这两个域名连不上（可能被本地网络拦截，或站点临时故障）'
+            : ok === false ? '\n\n诊断：Loon 整体连不上外网，请确认 Loon 已启用、节点可用'
+            : '\n\n诊断：探测超时，无法判断网络状态';
+      log(title + ' | ' + subtitle + ' | ' + body.replace(/\n/g, ' / '));
+      store('emos_sign_last', JSON.stringify({ date: today(), at: new Date().toISOString(), version: VERSION, bases: CFG.bases, results: results }));
+      post(title, subtitle, body, openUrl);
+      $done();
+    });
   }
 
   log(title + ' | ' + subtitle + ' | ' + body.replace(/\n/g, ' / '));
