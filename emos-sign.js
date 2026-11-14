@@ -4,7 +4,7 @@
  * 依据 somebyteorg/emos 公开 API 编写：
  *   GET  /api/user/base        基本信息（取用户名；401 即 token 失效）
  *   PUT  /api/user/sign        签到（?content=留言），429 表示今日已签
- *   GET  /api/rank/sign        签到排行榜（仅在已签时用来查今日位次）
+ *   GET  /api/pay/getUserSign  最近一次签到记录（位次/时间/萝卜/连续天数）
  *   GET  /api/carrot/current   当前可用萝卜
  *
  * 注意：/api/sign/check 在 Postman 里的名称是「判断是否登录」，
@@ -16,7 +16,7 @@
  * ---------------------------------------------------------------
  */
 
-var VERSION = '1.1.1';
+var VERSION = '1.1.2';
 var DEFAULT_BASE = 'https://emos.best|https://emos.club';
 
 /* 签到顺序奖惩（来自 emos wiki「萝卜货币」页）
@@ -195,12 +195,13 @@ function doSign(token, res, cb) {
       res.index = d.sign_index;
       res.earn = d.earn_point;
       res.days = d.continuous_days;
+      res.at = nowStr();
       return fetchCarrot(token, res, cb);
     }
     if (code === 429) {
       res.state = 'already';
       res.msg = '今日已签到';
-      return rankOf(token, res, function (r) { fetchCarrot(token, r, cb); });
+      return lastSign(token, res, function (r) { fetchCarrot(token, r, cb); });
     }
     if (code === 401 || code === 403) { res.state = 'auth'; res.msg = 'Token 无效或已过期'; return cb(res); }
 
@@ -209,21 +210,51 @@ function doSign(token, res, cb) {
   });
 }
 
-function rankOf(token, res, cb) {
-  http('get', '/api/rank/sign', token, res.base, function (err, code, data) {
-    var arr = json(data);
-    if (arr && arr.length && res.name) {
-      for (var i = 0; i < arr.length; i++) {
-        if (arr[i] && arr[i].username === res.name) {
-          res.index = arr[i].sign_index;
-          res.earn = arr[i].earn_point;
-          res.days = arr[i].continuous_days;
-          break;
-        }
+function lastSign(token, res, cb) {
+  if (!res.uid) return cb(res);
+  http('get', '/api/pay/getUserSign?user_id=' + encodeURIComponent(res.uid), token, res.base,
+    function (err, code, data) {
+      var d = json(data);
+      if (code === 200 && d && d.sign_index !== undefined) {
+        res.index = d.sign_index;
+        res.earn = d.earn_point;
+        res.days = d.continuous_days;
+        res.at = d.sign_at;
+        res.today = isToday(d.sign_at);
       }
-    }
-    cb(res);
-  });
+      cb(res);
+    });
+}
+
+function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+function nowStr() {
+  var d = new Date();
+  return pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+
+function parseLocal(s) {
+  var str = String(s);
+  if (/Z$/.test(str) || /\+00:00$/.test(str)) return new Date(str);
+  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})(?:[T ](\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10),
+                  m[4] ? parseInt(m[4], 10) : 0, m[5] ? parseInt(m[5], 10) : 0);
+}
+
+function fmtTime(s) {
+  if (!s) return '';
+  var d = parseLocal(s);
+  if (!d || isNaN(d.getTime())) return String(s);
+  return pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+
+function isToday(s) {
+  if (!s) return false;
+  var d = parseLocal(s);
+  if (!d || isNaN(d.getTime())) return false;
+  var now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }
 
 function fetchCarrot(token, res, cb) {
@@ -245,24 +276,36 @@ function rankNote(idx) {
   return v < 0 ? '  ⚠ 第 ' + idx + ' 位扣 ' + (-v) : '  ↑ 第 ' + idx + ' 位额外 +' + v;
 }
 
-function detailLine(r) {
+function detailLine(r, compact) {
   var line = r.name || r.label || '未知账号';
+  var when = r.at ? fmtTime(r.at) : '';
+
   if (r.state === 'ok') {
-    line += '：第 ' + (r.index === undefined ? '?' : r.index) + ' 名，+' + (r.earn === undefined ? 0 : r.earn) + ' 萝卜';
+    line += '：第 ' + (r.index === undefined || r.index === null ? '?' : r.index) + ' 名';
+    line += '，+' + (r.earn === undefined || r.earn === null ? 0 : r.earn) + ' 萝卜';
     if (r.days !== undefined && r.days !== null) line += '，连续 ' + r.days + ' 天';
   } else if (r.state === 'already') {
-    line += '：' + (r.msg || '今日已签到');
-    if (r.index !== undefined && r.index !== null) {
-      line += '（今日第 ' + r.index + ' 名';
-      if (r.earn !== undefined && r.earn !== null) line += '，+' + r.earn + ' 萝卜';
+    if (r.index === undefined || r.index === null) {
+      line += '：' + (r.msg || '今日已签到');
+    } else if (r.today === false) {
+      line += '：今日无签到记录，上次 ' + when;
+      line += '（+' + (r.earn === undefined ? 0 : r.earn) + ' 萝卜';
+      if (r.days !== undefined && r.days !== null) line += '，连续 ' + r.days + ' 天';
       line += '）';
+      when = '';
+    } else {
+      line += '：今日第 ' + r.index + ' 名';
+      line += '，+' + (r.earn === undefined ? 0 : r.earn) + ' 萝卜';
+      if (r.days !== undefined && r.days !== null) line += '，连续 ' + r.days + ' 天';
     }
   } else if (r.state === 'auth') {
     line += '：' + (r.msg || 'Token 无效');
   } else {
     line += '：' + (r.msg || '未知错误');
   }
+
   if (r.carrot !== undefined) line += '（余额 ' + r.carrot + '）';
+  if (when) line += compact ? ' · ' + when : '\n签到时间 ' + when;
   return line;
 }
 
@@ -291,7 +334,7 @@ function finish(results) {
   var body, openUrl = CFG.bases[0];
   if (results.length === 1) {
     var r = results[0];
-    body = detailLine(r);
+    body = detailLine(r, false);
     if (r.state === 'ok') {
       var note = rankNote(r.index);
       if (note) body += '\n' + note.replace(/^\s+/, '');
@@ -305,20 +348,26 @@ function finish(results) {
       body += '\n线路：' + host(r.base);
     }
   } else {
-    body = results.map(function (r, i) { return (i + 1) + '. ' + detailLine(r); }).join('\n');
+    body = results.map(function (r, i) { return (i + 1) + '. ' + detailLine(r, true); }).join('\n');
   }
 
   var title, subtitle;
   if (results.length === 1) {
     var one = results[0];
     title = one.state === 'ok' ? 'emos 签到成功'
-          : one.state === 'already' ? 'emos 今日已签到'
+          : one.state === 'already' ? (one.today === false ? 'emos 签到未生效' : 'emos 今日已签到')
           : one.state === 'auth' ? 'emos 签到失败 · Token 失效'
           : 'emos 签到失败';
     subtitle = one.state === 'ok'
       ? '第 ' + (one.index === undefined ? '?' : one.index) + ' 名 · +' + (one.earn === undefined ? 0 : one.earn) + ' 萝卜'
+        + (one.days !== undefined && one.days !== null ? ' · 连续 ' + one.days + ' 天' : '')
       : (one.state === 'already' && one.index !== undefined)
-        ? '今日第 ' + one.index + ' 名'
+        ? (one.today === false
+            ? '上次 ' + fmtTime(one.at) + ' · +' + (one.earn === undefined ? 0 : one.earn) + ' 萝卜'
+            : '今日第 ' + one.index + ' 名 · +' + (one.earn === undefined ? 0 : one.earn) + ' 萝卜'
+              + (one.days !== undefined && one.days !== null ? ' · 连续 ' + one.days + ' 天' : ''))
+      : one.state === 'already'
+        ? '服务端返回重复，未拿到记录'
       : one.state === 'auth'
         ? '请更新插件里的 token'
         : (one.name || one.label || '');
