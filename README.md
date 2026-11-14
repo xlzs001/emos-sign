@@ -11,7 +11,7 @@ Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条�
 | 线路 | 地址 |
 |---|---|
 | **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-v112.plugin` |
-| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v112.plugin` |
+| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v112-raw.plugin` |
 
 两条线路是配套的：jsDelivr 版插件的 `script-path` 指向 jsDelivr 上的脚本，raw 版指向 raw 上的脚本，不要混用。
 
