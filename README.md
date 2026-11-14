@@ -2,16 +2,20 @@
 
 基于 somebyte 公开 API 的每日签到插件。支持多账号、自定义执行时间、多线路自动切换，所有配置都在 Loon 插件面板里点选，不改代码。
 
+签到结果会告诉你：**今天第几名、加了多少萝卜、连续签到多少天、签到时间、当前余额**。
+
 ## 订阅
 
 Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条：
 
 | 线路 | 地址 |
 |---|---|
-| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-jsd.plugin` |
-| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign.plugin` |
+| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-v112.plugin` |
+| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v112.plugin` |
 
 两条线路是配套的：jsDelivr 版插件的 `script-path` 指向 jsDelivr 上的脚本，raw 版指向 raw 上的脚本，不要混用。
+
+> 文件名带版本号是为了绕开 jsDelivr 对 `@main` 的约 12 小时缓存；文件名里带 `1.1.2` 这种点号会被 jsDelivr 误判为版本号而 404，所以统一用 `v112` 这种写法。
 
 ## 可用站点
 
@@ -41,7 +45,7 @@ Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条�
 
 连续一周 +10、一月 +30、一年 +3000。
 
-落在扣分位时通知会标 `⚠ 第 9 位扣 2`。
+落在扣分位时通知会标 `⚠ 第 9 位扣 2`，落在加分位标 `↑ 第 3 位额外 +3`。
 
 ## 参数
 
@@ -59,19 +63,50 @@ Token 获取：登录 emos.best → 开发者工具 Network → 任意 `/api/` �
 ## 运行逻辑
 
 ```
-GET  /api/user/base        取用户名；401 即 token 失效，此步失败才会切换线路
-PUT  /api/user/sign        签到；返回 429「重复签到」即为今日已签
-GET  /api/rank/sign        仅已签时调用，反查当日位次
-GET  /api/carrot/current   可选，查余额
+GET  /api/user/base                  取用户名与 user_id；401 即 token 失效，此步失败才切换线路
+PUT  /api/user/sign                  签到；200 返回位次/萝卜/连续天数，429「重复签到」即今日已签
+GET  /api/pay/getUserSign?user_id=   仅已签时调用，取最近一次签到的位次、时间、萝卜、连续天数
+GET  /api/carrot/current             可选，查余额
 ```
 
 单账号最多 4 个请求，每天只跑一次，不轮询。
 
-> ⚠️ `/api/sign/check` 虽然在 Postman 里叫 sign，但它的真实名称是**「判断是否登录」**，`is_sign` 表示是否已登录，跟今天有没有签到无关。用它判断会导致每次都误判为「已签到」而跳过。
+> ⚠️ 两个曾经踩过的坑：
+>
+> - `/api/sign/check` 在 Postman 里写着 sign，真实名称是**「判断是否登录」**，`is_sign` 表示是否已登录，跟今天有没有签到无关。用它判断会每次都误判为「已签到」而跳过。
+> - `/api/rank/sign` 是公开排行榜，未必包含你自己的名次（可能只返回前 N 名，或字段对不上）。查自己的记录要用 `getUserSign`，它按 `user_id` 精确查。
+
+## 通知长什么样
+
+签到成功：
+
+```
+emos 签到成功
+第 3 名 · +5 萝卜 · 连续 12 天
+
+solici：第 3 名，+5 萝卜，连续 12 天（余额 1911）
+签到时间 11-14 00:04
+↑ 第 3 位额外 +3
+点击打开 emos.best
+```
+
+今日已签：
+
+```
+emos 今日已签到
+今日第 9 名 · +4 萝卜 · 连续 13 天
+
+solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）
+签到时间 11-14 00:04
+点击打开 emos.best
+```
+
+如果服务端说「重复签到」但今日记录查不到，标题会变成 **emos 签到未生效**，副标题显示上次签到时间，提示你手动补签。
 
 ## 更新记录
 
-- **v1.1.1** 修正签到判断：改为直接 `PUT /api/user/sign`，以 429 判定已签；已签时通过 `/api/rank/sign` 反查当日位次
+- **v1.1.2** 用 `getUserSign` 替代排行榜查位次；通知新增签到时间、萝卜数、连续天数；429 时校验记录是否真属于今天
+- **v1.1.1** 修正签到判断：改为直接 `PUT /api/user/sign`，以 429 判定已签
 - **v1.1.0** 多线路自动切换（emos.best → emos.club）、位次奖惩提示
 - **v1.1.0** 修正 `timeout` 单位（毫秒），此前 20ms 导致全部请求超时
 
@@ -79,5 +114,5 @@ GET  /api/carrot/current   可选，查余额
 
 - 官方明确 **禁止 0 点签到、禁止接口轮询**，默认 08:00，建议 7–10 点之间错峰。卡点 00:04 容易正好掉进第 26、89、113、199 这些扣分位。
 - Token 会过期，失效时通知提示「Token 无效」，重新抓一次即可。
-- 改了脚本想立刻生效：jsDelivr 清缓存 `https://purge.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign.js`；Loon 端删掉插件重新添加。
+- 改了脚本想立刻生效：换成新的版本化文件名（如 `emos-sign-v113.js`）并同步改插件里的 `script-path`，比清 jsDelivr 缓存可靠。
 - 仅用于自己的账号，请勿批量小号。
