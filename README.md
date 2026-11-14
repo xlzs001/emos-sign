@@ -1,55 +1,75 @@
 # emos 自动签到 · Loon 插件
 
-基于 `somebyteorg/emos` 公开 API 的每日签到插件，支持多账号、自定义执行时间，所有配置都在 Loon 插件面板里点选。
+基于 somebyte 公开 API 的每日签到插件。支持多账号、自定义执行时间、多线路自动切换，所有配置都在 Loon 插件面板里点选，不改代码。
 
-## 订阅地址
+## 订阅
 
-| 线路 | 插件订阅地址 | 适用 |
+Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条：
+
+| 线路 | 地址 |
+|---|---|
+| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-jsd.plugin` |
+| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign.plugin` |
+
+两条线路是配套的：jsDelivr 版插件的 `script-path` 指向 jsDelivr 上的脚本，raw 版指向 raw 上的脚本，不要混用。
+
+## 可用站点
+
+照着 [emos wiki](https://emos.dpdns.org/links) 把每个域名都探过一遍，**真正能签到的只有两个**：
+
+| 站点 | 能否签到 | 说明 |
 |---|---|---|
-| jsDelivr（推荐） | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-jsd.plugin` | 国内可直接访问 |
-| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign.plugin` | 境外 / 已具备直连 |
+| `emos.best` | ✅ | 主站 |
+| `emos.club` | ✅ | 与主站同一后端，响应逐字节相同，token 通用、签到状态互通 |
+| `emya.wwzb.de` | ❌ | 纯前端控制台，签到请求最终打主站 |
+| `fund / reel / wiki / status / video.emos.best` | ❌ | 静态页或专用服务，无 `/api/sign` |
+| `voice.somebyte.org`、`theotherdb.org` | ⚠️ 独立 | 有 `/api/sign`，但走 somebyte OAuth 跳转，凭证是 session 不是 Bearer |
 
-脚本本身：
+插件默认线路 `https://emos.best|https://emos.club`：主站不通（超时、5xx、DNS 问题）才切到镜像，正常只请求一个域名，不会重复签到。
 
-- jsDelivr：`https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign.js`
-- raw：`https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign.js`
+## 签到奖励规则
 
-> 两条线路是配套的：订阅 jsDelivr 版插件，脚本也走 jsDelivr；订阅 raw 版，脚本也走 raw。不要混用，否则可能插件拉到了、脚本拉不到。
+基础每次 **+1~5 萝卜**，另按当天签到顺序加减：
 
-## 安装
+| 位次 | 增减 | 位次 | 增减 |
+|---|---|---|---|
+| 第 3 位 | **+3** | 第 89 位 | **−3** |
+| 第 9 位 | **−2** | 第 113 位 | **−2** |
+| 第 11 位 | **+2** | 第 199 位 | **−2** |
+| 第 26 位 | **−1** | 第 311 位 | **+1** |
+| 第 59 位 | **+2** | 第 457 位 | **+2** |
 
-1. Loon → 配置 → 插件 → 右上角 `+` → **从 URL 添加**
-2. 粘贴上表其中一个地址
-3. 进插件设置，填 ① 登录凭证 Token
-4. 到 脚本 页面，手动跑一次「emos 立即签到」验证
+连续一周 +10、一月 +30、一年 +3000。
 
-Token 获取：登录 emos.best → 开发者工具 Network → 任意 `/api/` 请求 → 请求头 `Authorization: Bearer` 后面那串。
+落在扣分位时通知会标 `⚠ 第 9 位扣 2`。
 
-## 可配置项
+## 参数
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | ① 登录凭证 Token | 空 | 必填，多账号用 `;` 分隔 |
-| ② 站点地址 | `https://emos.best` | 域名变更时改这里 |
+| ② 站点地址 | `https://emos.best\|https://emos.club` | 多条线路用 `\|` 分隔，主站不通自动切换 |
 | ③ 每日执行时间 | `0 8 * * *` | 5 段 cron（分 时 日 月 周） |
 | ④ 签到留言 | `每日签到` | 可为空 |
-| ⑤ 签到结果通知 | 开 | 关掉只写日志 |
+| ⑤ 签到结果通知 | 开 | 关闭后只写日志 |
 | 显示萝卜余额 | 开 | 多 1 个请求 |
+
+Token 获取：登录 emos.best → 开发者工具 Network → 任意 `/api/` 请求 → 请求头 `Authorization: Bearer` 后面那串。
 
 ## 运行逻辑
 
 ```
-GET  /api/user/base        取用户名（用于通知）
-GET  /api/sign/check       今天签过就跳过，不重复提交
-PUT  /api/user/sign        真正签到，返回排名 / 萝卜 / 连续天数
-GET  /api/carrot/current   可选，查萝卜余额
+GET  /api/user/base        取用户名；此步失败才会切换到下一条线路
+GET  /api/sign/check       今天签过就跳过
+PUT  /api/user/sign        签到，返回排名 / 萝卜 / 连续天数
+GET  /api/carrot/current   可选，查余额
 ```
 
-单账号最多 4 个请求，每天只跑一次，不轮询。接口返回 `is_sign: true` 或 429 都判定为「今日已签到」，不报错。
+单账号最多 4 个请求，每天只跑一次，不轮询。`is_sign: true` 或 429 都判定为「今日已签到」。
 
 ## 注意
 
-- 接口文档明确 **禁止 0 点签到、禁止接口轮询**，默认时间设为 08:00，建议 7–10 点之间错峰
-- Token 有过期时间，失效后通知会提示「Token 无效」，重新抓一次即可
-- Loon 对远程脚本有缓存：改了脚本想立刻生效，删掉插件重新添加，或把分支 URL 换成某个 commit sha
-- 仅用于自己的账号，请勿批量小号
+- 官方明确 **禁止 0 点签到、禁止接口轮询**，默认 08:00，建议 7–10 点之间错峰。卡点 00:04 容易正好掉进第 26、89、113、199 这些扣分位。
+- Token 会过期，失效时通知提示「Token 无效」，重新抓一次即可。
+- 改了脚本想立刻生效：jsDelivr 清缓存 `https://purge.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign.js`；Loon 端删掉插件重新添加。
+- 仅用于自己的账号，请勿批量小号。
