@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>emos 签到插件 · 配置助手</title>
+<style>
+  :root{
+    --bg:#f2f2f7; --card:#fff; --line:#e5e5ea; --txt:#1c1c1e; --txt2:#6e6e73; --txt3:#9a9aa0;
+    --accent:#ff6c37; --accent-soft:#fff2ec; --green:#34c759; --red:#ff3b30; --blue:#007aff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro SC","PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;padding:28px 18px 70px}
+  .page{max-width:1040px;margin:0 auto}
+  header{text-align:center;margin-bottom:26px}
+  .logo{width:54px;height:54px;border-radius:13px;margin:0 auto 12px;
+    background:linear-gradient(135deg,#ffa06b,#ff5a1f);display:flex;align-items:center;justify-content:center;
+    color:#fff;font-size:26px;font-weight:700;box-shadow:0 8px 22px rgba(255,90,31,.32)}
+  h1{font-size:22px;margin:0 0 6px;letter-spacing:-.4px}
+  .sub{color:var(--txt2);font-size:13px}
+  .grid{display:grid;grid-template-columns:1.06fr .94fr;gap:16px;align-items:start}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border-radius:14px;box-shadow:0 1px 2px rgba(0,0,0,.05);overflow:hidden}
+  .card-h{padding:12px 16px;font-size:13px;font-weight:600;color:var(--txt2);border-bottom:1px solid var(--line);
+    display:flex;align-items:center;gap:8px;background:#fafafc}
+  .card-h .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .card-b{padding:6px 0}
+
+  .row{display:flex;align-items:center;gap:12px;padding:11px 16px;border-bottom:1px solid #f2f2f4}
+  .row:last-child{border-bottom:0}
+  .row label{width:118px;flex:0 0 118px;color:var(--txt);font-size:13.5px}
+  .row .ctl{flex:1;min-width:0}
+  input[type=text],input[type=password],input[type=time],select{
+    width:100%;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;
+    font-family:inherit;color:var(--txt);background:#fff;outline:none;transition:.15s}
+  input:focus,select:focus{border-color:#ffab8c;box-shadow:0 0 0 3px rgba(255,108,55,.10)}
+  .hint{font-size:11.5px;color:var(--txt3);margin-top:5px;line-height:1.5}
+  .hint.warn{color:#c1272d}
+  .switch{position:relative;width:44px;height:26px;flex:0 0 44px;margin-left:auto}
+  .switch input{display:none}
+  .switch span{position:absolute;inset:0;background:#e5e5ea;border-radius:14px;transition:.2s;cursor:pointer}
+  .switch span::after{content:"";position:absolute;width:22px;height:22px;border-radius:50%;background:#fff;
+    top:2px;left:2px;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch input:checked + span{background:var(--green)}
+  .switch input:checked + span::after{transform:translateX(18px)}
+  .eye{position:absolute;right:9px;top:7px;font-size:11px;color:var(--txt3);cursor:pointer;user-select:none}
+  .pw{position:relative}
+
+  .cronbox{padding:16px;background:linear-gradient(180deg,#fffaf7,#fff);border-bottom:1px solid var(--line)}
+  .cronval{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:19px;font-weight:600;
+    letter-spacing:.5px;color:#c2410c;word-break:break-all}
+  .cronlabel{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--txt3);margin-bottom:4px}
+  .runs{padding:4px 0}
+  .run{display:flex;align-items:center;gap:10px;padding:8px 16px;font-size:13px;border-bottom:1px solid #f6f6f8}
+  .run:last-child{border-bottom:0}
+  .run .idx{width:18px;height:18px;border-radius:50%;background:var(--accent-soft);color:#c2410c;
+    font-size:10.5px;font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 18px}
+  .run .d{flex:1}
+  .run .t{font-family:ui-monospace,Menlo,monospace;font-weight:600;font-size:13px}
+  .run .rel{color:var(--txt3);font-size:11.5px}
+  .err{padding:14px 16px;color:#c1272d;font-size:12.5px;background:#fff5f5}
+
+  /* 通知预览 */
+  .notifwrap{padding:18px 16px 22px;background:linear-gradient(180deg,#e9ecf2,#dfe4ec)}
+  .notif{background:rgba(255,255,255,.92);backdrop-filter:blur(12px);border-radius:15px;padding:11px 13px;
+    box-shadow:0 6px 20px rgba(0,0,0,.10);display:flex;gap:11px}
+  .appicon{width:38px;height:38px;border-radius:9px;flex:0 0 38px;
+    background:linear-gradient(135deg,#ffa06b,#ff5a1f);display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:17px}
+  .notif .body{flex:1;min-width:0}
+  .notif .top{display:flex;justify-content:space-between;font-size:11px;color:var(--txt3);margin-bottom:2px}
+  .notif .nt{font-weight:650;font-size:13.5px;letter-spacing:-.2px}
+  .notif .ns{font-size:12.5px;color:var(--txt);margin-top:1px}
+  .notif .nb{font-size:12.5px;color:var(--txt2);margin-top:2px;white-space:pre-wrap;word-break:break-word}
+  .seg{display:flex;gap:6px;padding:0 16px 14px;background:linear-gradient(180deg,#dfe4ec,#dfe4ec)}
+  .seg button{flex:1;border:0;background:rgba(255,255,255,.6);color:var(--txt2);font-size:11.5px;
+    padding:6px 4px;border-radius:8px;cursor:pointer;font-family:inherit}
+  .seg button.on{background:#fff;color:var(--txt);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  @media(max-width:880px){.steps{grid-template-columns:1fr}}
+  .step{background:#fff;border-radius:14px;padding:14px 15px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+  .step .n{width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11.5px;
+    font-weight:700;display:flex;align-items:center;justify-content:center;margin-bottom:8px}
+  .step b{display:block;font-size:13.5px;margin-bottom:4px}
+  .step p{margin:0;font-size:12.5px;color:var(--txt2);line-height:1.6}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;background:#f4f4f6;border:1px solid #ebebef;
+    padding:1px 5px;border-radius:4px;color:#b3341a;word-break:break-all}
+  .snippet{margin-top:16px;background:#1c1c1e;border-radius:14px;padding:14px 16px;color:#e5e5ea;position:relative}
+  .snippet .lbl{font-size:11px;color:#8e8e93;letter-spacing:.4px;margin-bottom:8px}
+  .snippet pre{margin:0;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.75;
+    white-space:pre-wrap;word-break:break-all;color:#f2f2f7}
+  .snippet .cp{position:absolute;right:12px;top:12px;background:#3a3a3c;color:#fff;border:0;border-radius:7px;
+    font-size:11px;padding:4px 9px;cursor:pointer;font-family:inherit}
+  .snippet .cp:hover{background:#48484a}
+  .tok{color:#ff9f6b}
+  footer{text-align:center;color:var(--txt3);font-size:11.5px;margin-top:26px;line-height:1.8}
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="logo">e</div>
+    <h1>emos 签到插件 · 配置助手</h1>
+    <div class="sub">选好时间 → 复制参数 → 粘到 Loon 插件设置里</div>
+  </header>
+
+  <div class="grid">
+    <!-- 左：参数面板 -->
+    <div>
+      <div class="card">
+        <div class="card-h"><span class="dot"></span>插件参数（模拟 Loon 设置面板）</div>
+        <div class="card-b">
+          <div class="row">
+            <label>① Token</label>
+            <div class="ctl pw">
+              <input id="token" type="password" placeholder="粘贴 Bearer 后面的那串字符" autocomplete="off">
+              <span class="eye" id="eye">显示</span>
+              <div class="hint" id="tokenHint">多个账号用分号分隔，例如 <code>abc123;def456</code></div>
+            </div>
+          </div>
+          <div class="row">
+            <label>② 执行频率</label>
+            <div class="ctl">
+              <select id="mode">
+                <option value="daily">每天</option>
+                <option value="workday">工作日（周一至周五）</option>
+                <option value="weekly">每周指定一天</option>
+                <option value="custom">自定义 cron</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" id="rowTime">
+            <label>③ 执行时间</label>
+            <div class="ctl">
+              <input id="time" type="time" value="08:00">
+              <div class="hint" id="timeHint">官方说明：禁止 0 点签到，也禁止轮询接口</div>
+            </div>
+          </div>
+          <div class="row" id="rowWeek" style="display:none">
+            <label>星期</label>
+            <div class="ctl">
+              <select id="week">
+                <option value="1">周一</option><option value="2">周二</option><option value="3">周三</option>
+                <option value="4">周四</option><option value="5">周五</option><option value="6">周六</option>
+                <option value="0">周日</option>
+              </select>
+            </div>
+          </div>
+          <div class="row" id="rowCustom" style="display:none">
+            <label>cron</label>
+            <div class="ctl">
+              <input id="custom" type="text" value="0 8 * * *" placeholder="分 时 日 月 周">
+              <div class="hint">5 段：分钟 小时 日 月 星期，星期 0 表示周日</div>
+            </div>
+          </div>
+          <div class="row">
+            <label>④ 签到留言</label>
+            <div class="ctl">
+              <input id="content" type="text" value="每日签到">
+              <div class="hint">接口说明称填写内容可随机获得更多萝卜</div>
+            </div>
+          </div>
+          <div class="row">
+            <label>⑤ 结果通知</label>
+            <div class="switch"><input type="checkbox" id="notify" checked><span onclick="document.getElementById('notify').click()"></span></div>
+          </div>
+          <div class="row">
+            <label>显示萝卜余额</label>
+            <div class="switch"><input type="checkbox" id="carrot" checked><span onclick="document.getElementById('carrot').click()"></span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <div class="card-h"><span class="dot"></span>每次运行会做什么</div>
+        <div class="card-b">
+          <div class="row" style="align-items:flex-start">
+            <div class="ctl" style="font-size:12.5px;color:var(--txt2);line-height:1.9">
+              <div><code>GET</code> /api/user/base · 取用户名，用于通知显示</div>
+              <div><code>GET</code> /api/sign/check · 今天签过就跳过，不再提交</div>
+              <div><code>PUT</code> /api/user/sign?content=… · 真正签到</div>
+              <div><code>GET</code> /api/carrot/current · 可选，查萝卜余额</div>
+              <div style="margin-top:6px;color:var(--txt3)">单账号最多 4 个请求，一天只跑一次，不轮询。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右：cron + 通知预览 -->
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="card-h"><span class="dot"></span>生成的时间表达式</div>
+        <div class="cronbox">
+          <div class="cronlabel">cronExpression</div>
+          <div class="cronval" id="cronOut">0 8 * * *</div>
+        </div>
+        <div class="runs" id="runs"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-h"><span class="dot"></span>通知效果预览</div>
+        <div class="notifwrap">
+          <div class="notif">
+            <div class="appicon">e</div>
+            <div class="body">
+              <div class="top"><span>Loon</span><span>现在</span></div>
+              <div class="nt" id="nTitle">emos 签到成功</div>
+              <div class="ns" id="nSub">第 3 名 · +5 萝卜 · 连续 12 天</div>
+              <div class="nb" id="nBody">solici：第 3 名，+5 萝卜，连续 12 天（余额 1911）<br>签到时间 11-14 00:04<br>↑ 第 3 位额外 +3</div>
+            </div>
+          </div>
+        </div>
+        <div class="seg">
+          <button data-s="ok" class="on">签到成功</button>
+          <button data-s="already">今日已签</button>
+          <button data-s="auth">Token 失效</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="snippet">
+    <button class="cp" id="cpBtn">复制参数</button>
+    <div class="lbl">粘贴到 Loon → 插件 → emos 自动签到</div>
+    <pre id="snip"></pre>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="n">1</div><b>导入脚本</b><p>Loon → 配置 → 脚本 → 右上角 + → 从文件导入 <code>emos-sign.js</code></p></div>
+    <div class="step"><div class="n">2</div><b>导入插件</b><p>Loon → 配置 → 插件 → 右上角 + → 从文件导入 <code>emos-sign.plugin</code></p></div>
+    <div class="step"><div class="n">3</div><b>填 Token</b><p>登录 emos.best → 开发者工具 Network → 任选一个 <code>/api/</code> 请求 → 复制请求头 <code>Authorization</code> 里 Bearer 后面那串</p></div>
+  </div>
+
+  <footer>
+    该插件为本地辅助工具，只调用你自己的账号接口 · 请遵守站点规则，勿改小时间隔轮询
+  </footer>
+</div>
+
+<script>
+var $ = function(id){ return document.getElementById(id); };
+
+/* ---------- cron 解析 ---------- */
+function parseField(str, min, max, name){
+  var set = {};
+  if(!str) throw new Error(name + ' 为空');
+  str.split(',').forEach(function(seg){
+    seg = seg.trim();
+    if(!seg) throw new Error(name + ' 有空的段');
+    var step = 1;
+    if(seg.indexOf('/') >= 0){
+      var t = seg.split('/');
+      seg = t[0];
+      step = parseInt(t[1], 10);
+      if(!step || step < 1) throw new Error(name + ' 的步长无效');
+    }
+    var lo, hi;
+    if(seg === '*'){ lo = min; hi = max; }
+    else if(seg.indexOf('-') > 0){
+      var r = seg.split('-');
+      lo = parseInt(r[0], 10); hi = parseInt(r[1], 10);
+    } else {
+      lo = parseInt(seg, 10);
+      if(isNaN(lo)) throw new Error(name + ' 含非法值 ' + seg);
+      hi = (step > 1) ? max : lo;
+    }
+    if(isNaN(lo) || isNaN(hi) || lo < min || hi > max || lo > hi)
+      throw new Error(name + ' 超出范围（' + min + '-' + max + '）：' + seg);
+    for(var v = lo; v <= hi; v += step) set[v] = 1;
+  });
+  return set;
+}
+
+function parseCron(expr){
+  var p = expr.trim().split(/\s+/);
+  if(p.length !== 5) throw new Error('需要 5 段：分 时 日 月 周');
+  return {
+    min: parseField(p[0], 0, 59, '分钟'),
+    hour: parseField(p[1], 0, 23, '小时'),
+    dom: parseField(p[2], 1, 31, '日'),
+    mon: parseField(p[3], 1, 12, '月'),
+    dow: parseField(p[4], 0, 6, '星期'),
+    raw: expr.trim()
+  };
+}
+
+function nextRuns(c, count){
+  var out = [], n = 0;
+  var d = new Date();
+  d.setSeconds(0, 0);
+  d.setMinutes(d.getMinutes() + 1);
+  var limit = 60 * 24 * 400;
+  for(var i = 0; i < limit && out.length < count; i++){
+    if(c.mon[d.getMonth() + 1] && c.dom[d.getDate()] && c.dow[d.getDay()] &&
+       c.hour[d.getHours()] && c.min[d.getMinutes()]){
+      out.push(new Date(d.getTime()));
+    }
+    d.setMinutes(d.getMinutes() + 1);
+  }
+  return out;
+}
+
+var WEEK = ['周日','周一','周二','周三','周四','周五','周六'];
+
+function fmt(d){
+  return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + WEEK[d.getDay()] + ' ' +
+    ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+}
+
+function rel(d){
+  var ms = d - new Date();
+  var m = Math.round(ms / 60000);
+  if(m < 60) return m + ' 分钟后';
+  if(m < 1440) return Math.floor(m / 60) + ' 小时 ' + (m % 60) + ' 分钟后';
+  return Math.floor(m / 1440) + ' 天后';
+}
+
+/* ---------- 生成 cron ---------- */
+function currentCron(){
+  var mode = $('mode').value;
+  if(mode === 'custom') return $('custom').value.trim();
+  var t = ($('time').value || '08:00').split(':');
+  var h = parseInt(t[0], 10), m = parseInt(t[1], 10);
+  if(mode === 'daily') return m + ' ' + h + ' * * *';
+  if(mode === 'workday') return m + ' ' + h + ' * * 1-5';
+  if(mode === 'weekly') return m + ' ' + h + ' * * ' + $('week').value;
+  return '0 8 * * *';
+}
+
+/* ---------- 通知预览 ---------- */
+var NOTI = {
+  ok: {
+    t:'emos 签到成功',
+    s:'第 3 名 · +5 萝卜 · 连续 12 天',
+    b:'solici：第 3 名，+5 萝卜，连续 12 天（余额 1911）\n签到时间 11-14 00:04\n↑ 第 3 位额外 +3\n点击打开 emos.best'
+  },
+  already: {
+    t:'emos 今日已签到',
+    s:'今日第 9 名 · +4 萝卜 · 连续 13 天',
+    b:'solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）\n签到时间 11-14 00:04\n⚠ 第 9 位扣 2\n点击打开 emos.best'
+  },
+  auth: {
+    t:'emos 签到失败 · Token 失效',
+    s:'请更新插件里的 token',
+    b:'账号 1：Token 无效或已过期\n请到插件设置里更新 token'
+  }
+};
+var curState = 'ok';
+document.querySelectorAll('.seg button').forEach(function(b){
+  b.onclick = function(){
+    document.querySelectorAll('.seg button').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    curState = b.dataset.s;
+    renderNoti();
+  };
+});
+
+function renderNoti(){
+  if(!$('notify').checked){
+    $('nTitle').textContent = '（通知已关闭）';
+    $('nSub').textContent = '结果仅写入 Loon 日志';
+    $('nBody').textContent = '';
+    return;
+  }
+  var n = NOTI[curState];
+  var b = n.b;
+  if(!$('carrot').checked) b = b.split('\n').map(function(l){ return l.replace(/（余额 \d+）/, ''); }).join('\n');
+  $('nTitle').textContent = n.t;
+  $('nSub').textContent = n.s;
+  $('nBody').textContent = b;
+}
+
+/* ---------- 渲染 ---------- */
+function render(){
+  var expr = currentCron();
+  var cron = expr;
+  $('cronOut').textContent = cron || '—';
+
+  var box = $('runs');
+  var hint = $('timeHint');
+  var h = parseInt((cron.split(/\s+/)[1] || '8'), 10);
+
+  if(h === 0) { hint.className = 'hint warn'; hint.textContent = '注意：接口文档写明「禁止选 0 点」，且 0 点段人多，容易正好落进第 26、89、113、199 这些扣分位（最多 −3 萝卜）'; }
+  else { hint.className = 'hint'; hint.textContent = '官方说明：禁止 0 点签到，也禁止轮询接口'; }
+
+  try{
+    var c = parseCron(cron);
+    var runs = nextRuns(c, 5);
+    if(!runs.length){
+      box.innerHTML = '<div class="err">这个表达式在未来 400 天内没有匹配时间，请检查。</div>';
+    } else {
+      box.innerHTML = runs.map(function(d, i){
+        return '<div class="run"><div class="idx">' + (i + 1) + '</div><div class="d">' +
+          '<div class="t">' + fmt(d) + '</div></div><div class="rel">' + rel(d) + '</div></div>';
+      }).join('');
+    }
+  } catch(e){
+    box.innerHTML = '<div class="err">' + e.message + '</div>';
+  }
+
+  var tokens = ($('token').value || '').split(/[\s,;，；、]+/).filter(Boolean);
+  var n = tokens.length || 1;
+  $('tokenHint').innerHTML = tokens.length > 1
+    ? '识别到 <b>' + tokens.length + '</b> 个账号，将依次签到'
+    : (tokens.length === 1 ? '已填入 1 个账号' : '多个账号用分号分隔，例如 <code>abc123;def456</code>');
+
+  $('snip').innerHTML =
+    '<span class="tok">token</span>          = ' + (tokens.join(';') || '（待填写）') + '\n' +
+    '<span class="tok">baseUrl</span>        = https://emos.best|https://emos.club\n' +
+    '<span class="tok">cronExpression</span> = ' + cron + '\n' +
+    '<span class="tok">signContent</span>    = ' + ($('content').value || '每日签到') + '\n' +
+    '<span class="tok">notify</span>         = ' + $('notify').checked + '\n' +
+    '<span class="tok">showCarrot</span>     = ' + $('carrot').checked;
+
+  renderNoti();
+}
+
+['token','time','content','custom','mode','week','notify','carrot'].forEach(function(id){
+  var el = $(id);
+  el.addEventListener('input', render);
+  el.addEventListener('change', function(){
+    if(id === 'mode'){
+      $('rowTime').style.display = ($('mode').value === 'custom') ? 'none' : 'flex';
+      $('rowWeek').style.display = ($('mode').value === 'weekly') ? 'flex' : 'none';
+      $('rowCustom').style.display = ($('mode').value === 'custom') ? 'flex' : 'none';
+    }
+    render();
+  });
+});
+
+$('eye').onclick = function(){
+  var t = $('token');
+  var show = t.type === 'password';
+  t.type = show ? 'text' : 'password';
+  this.textContent = show ? '隐藏' : '显示';
+};
+
+function copyText(txt, btn, label){
+  function ok(){
+    btn.textContent = '已复制';
+    setTimeout(function(){ btn.textContent = label; }, 1400);
+  }
+  function fallback(){
+    var ta = document.createElement('textarea');
+    ta.value = txt;
+    ta.style.position = 'fixed';
+    ta.style.top = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, txt.length);
+    var done = false;
+    try { done = document.execCommand('copy'); } catch(e) {}
+    document.body.removeChild(ta);
+    if(done) ok();
+    else { btn.textContent = '请手动选中复制'; setTimeout(function(){ btn.textContent = label; }, 2000); }
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(ok).catch(fallback);
+  } else {
+    fallback();
+  }
+}
+
+$('cpBtn').onclick = function(){
+  copyText($('snip').innerText, $('cpBtn'), '复制参数');
+};
+
+render();
+</script>
+</body>
+</html>
