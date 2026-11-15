@@ -1,0 +1,20 @@
+#!name = emos 自动签到
+#!desc = emos.best 每日自动签到 · 支持多账号、自定义执行时间、签到结果通知
+#!author = 依据 somebyteorg/emos 公开 API 制作
+#!tag = 签到,工具
+#!system = ios,macos
+#!loon_version = 3.2.1(733)
+#!date = 2026-11-15
+#!icon = https://emos.best/favicon.ico
+
+[Argument]
+token = input,"",tag=① 登录凭证 Token,desc=必填。登录 emos.best 后打开开发者工具或抓包 取请求头 Authorization 中 Bearer 后面的字符串 多个账号用英文分号隔开
+baseUrl = input,"https://emos.best|https://emos.club",tag=② 站点地址,desc=可填多条线路用竖线分隔 主站不通会自动切到下一个 emos.club 与主站同一账号 签到状态互通
+cronExpression = input,"0 8 * * *",tag=③ 每日执行时间,desc=5 段 cron 分 时 日 月 周 默认每天 08:00 官方禁止 0 点签到 建议 7 点到 10 点之间错峰
+signContent = input,"每日签到",tag=④ 签到留言,desc=接口说明称填写内容可随机获得更多萝卜 留空则为「每日签到」 不要包含逗号或方括号
+notify = switch,true,tag=⑤ 签到结果通知
+showCarrot = switch,true,tag=显示萝卜余额,desc=签到后额外查询一次可用萝卜 会多 1 个请求
+
+[Script]
+cron "{cronExpression}" script-path=https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v114.js,tag="emos 定时签到",argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true
+generic script-path=https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v114.js,tag="emos 立即签到",img-url=checkmark.seal.fill,argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true
