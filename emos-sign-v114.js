@@ -23,7 +23,7 @@
  * ---------------------------------------------------------------
  */
 
-var VERSION = '1.1.4';
+var VERSION = '1.1.5';
 var DEFAULT_BASE = 'https://emos.best|https://emos.club';
 
 /* 签到顺序奖惩（来自 emos wiki「萝卜货币」页）
@@ -82,6 +82,16 @@ function log(msg) {
 
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
+/* 把多行/带 \uXXXX 转义的响应压成一行，日志里不占版面 */
+function oneLine(s, max) {
+  var t = String(s == null ? '' : s)
+    .replace(/\\u([0-9a-fA-F]{4})/g, function (_, h) { return String.fromCharCode(parseInt(h, 16)); })
+    .replace(/\s+/g, ' ')
+    .trim();
+  max = max || 80;
+  return t.length > max ? t.slice(0, max) + '…' : t;
+}
+
 function today() {
   var d = new Date();
   return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
@@ -139,7 +149,7 @@ function http(method, path, token, base, cb) {
       var status = 0;
       if (resp) status = resp.status || resp.statusCode || 0;
       if (err) {
-        log('请求失败 ' + String(method).toUpperCase() + ' ' + opts.url + ' → ' + (err && err.message ? err.message : String(err)));
+        log('请求失败 ' + String(method).toUpperCase() + ' ' + path + ' → ' + oneLine(err && err.message ? err.message : err, 60));
       }
       cb(err, status, data || '');
     });
@@ -168,7 +178,7 @@ function attempt(token, res, cb, si) {
     if (retryable(err, code)) {
       var why = err ? ('连接失败: ' + (err && err.message ? err.message : String(err))) : ('HTTP ' + code);
       if (si + 1 < CFG.bases.length) {
-        log(host(base) + ' 不可用（' + why + '），切换到 ' + host(CFG.bases[si + 1]));
+        log(host(base) + ' 不可用，切到 ' + host(CFG.bases[si + 1]));
         return attempt(token, res, cb, si + 1);
       }
       res.msg = '网络请求失败（' + why + '）';
@@ -231,12 +241,12 @@ function doSign(token, res, cb) {
     if (code === 429) {
       res.state = 'already';
       res.msg = '今日已签到';
-      log('PUT /api/user/sign → 429，返回体 ' + String(data).slice(0, 160));
+      log('429 ' + oneLine((d && d.message) || data, 40));
       /* 少数部署会在 429 里直接带回签到详情 */
       var in429 = pickSign(d, res);
       if (in429 && (in429.index !== undefined || in429.at)) {
         applyRec(res, in429);
-        log('记录来源 429 响应体：名次 ' + res.index + '，时间 ' + res.at);
+        log('记录藏在 429 响应里');
         return fetchCarrot(token, res, cb);
       }
       return fetchRecord(token, res, function (r) { fetchCarrot(token, r, cb); });
@@ -375,10 +385,10 @@ function fetchRecord(token, res, cb) {
         if (res.index === undefined && rec.index !== undefined) res.index = rec.index;
         if (res.earn === undefined && rec.earn !== undefined) res.earn = rec.earn;
         if (res.days === undefined && rec.days !== undefined) res.days = rec.days;
-        log('记录来源 本机缓存：' + rec.at);
+        log('记录来自本机缓存');
       }
     }
-    if (tried.length) log('记录反查结果 → ' + tried.join('，'));
+    if (tried.length) log('反查失败：' + tried.join('，'));
     if (res.at && res.today !== false) saveRec(res);
     cb(res);
   }
@@ -398,18 +408,16 @@ function fetchRecord(token, res, cb) {
         if (isTodayRec === true || isTodayRec === undefined) {
           applyRec(res, got);
           saveRec(res);
-          log('记录来源 ' + s[0] + '：名次 ' + res.index + '，时间 ' + res.at);
+          if (s[0] !== 'user.sign') log('记录来自 ' + s[0]);
           return cb(res);
         }
         /* 是旧记录，先留着，继续找今天的 */
         if (!fallback) fallback = got;
-        log('记录来源 ' + s[0] + '：只有旧记录（' + got.at + '），继续查');
+        log(s[0] + ' 只有旧记录（' + fmtTime(got.at) + '），继续查');
         return step(i + 1);
       }
 
       tried.push(s[0] + ' ' + (code === 200 ? '无记录' : 'HTTP ' + code));
-      log('记录来源 ' + s[0] + '：' + (code === 200 ? '返回里没有签到记录' : 'HTTP ' + code) +
-        (err ? '（' + (err.message || String(err)) + '）' : ''));
       step(i + 1);
     });
   }
@@ -527,6 +535,16 @@ function detailLine(r, compact) {
   return line;
 }
 
+function logFinish(title, subtitle, results) {
+  var extra = (results.length === 1 && results[0].carrot !== undefined) ? ' · 余额 ' + results[0].carrot : '';
+  log('完成 · ' + String(title).replace(/^emos\s*/, '') + ' · ' + subtitle + extra);
+  if (results.length > 1) {
+    results.forEach(function (r, i) {
+      log('  ' + (i + 1) + '. ' + detailLine(r, true).split('\n')[0]);
+    });
+  }
+}
+
 function probe(cb) {
   var done = false;
   function back(ok) { if (!done) { done = true; cb(ok); } }
@@ -603,14 +621,14 @@ function finish(results) {
       body += ok === true ? '\n\n诊断：外网正常，是这两个域名连不上（可能被本地网络拦截，或站点临时故障）'
             : ok === false ? '\n\n诊断：Loon 整体连不上外网，请确认 Loon 已启用、节点可用'
             : '\n\n诊断：探测超时，无法判断网络状态';
-      log(title + ' | ' + subtitle + ' | ' + body.replace(/\n/g, ' / '));
+      logFinish(title, subtitle, results);
       store('emos_sign_last', JSON.stringify({ date: today(), at: new Date().toISOString(), version: VERSION, bases: CFG.bases, results: results }));
       post(title, subtitle, body, openUrl);
       $done();
     });
   }
 
-  log(title + ' | ' + subtitle + ' | ' + body.replace(/\n/g, ' / '));
+  logFinish(title, subtitle, results);
 
   store('emos_sign_last', JSON.stringify({
     date: today(),
@@ -634,7 +652,7 @@ function finish(results) {
     return $done();
   }
 
-  log('开始签到，账号数 ' + CFG.tokens.length + '，线路 ' + CFG.bases.join(' → ') + '，版本 ' + VERSION);
+  log('开始 · ' + CFG.tokens.length + ' 账号 · ' + CFG.bases.map(host).join(' → ') + ' · v' + VERSION);
 
   var results = [];
   var i = 0;
