@@ -10,12 +10,14 @@ Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条�
 
 | 线路 | 地址 |
 |---|---|
-| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-v114.plugin` |
-| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v114-raw.plugin` |
+| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@v115/emos-sign-v115.plugin` |
+| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v115-raw.plugin` |
 
 两条线路是配套的：jsDelivr 版插件的 `script-path` 指向 jsDelivr 上的脚本，raw 版指向 raw 上的脚本，不要混用。
 
-> 文件名带版本号是为了绕开 jsDelivr 对 `@main` 的约 12 小时缓存；文件名里带 `1.1.2` 这种点号会被 jsDelivr 误判为版本号而 404，所以统一用 `v112` 这种写法。
+> 地址用 **tag 固定**（`@v115`），不走 `@main`。jsDelivr 对 `@main` 的文件内容有约 12 小时缓存，
+> 同一个路径改了内容要等半天；新 tag、新文件名是全新引用，立刻生效。
+> 文件名别带 `1.1.2` 这种点号，jsDelivr 会当成版本号返回 404，统一写 `v115`。
 
 ## 可用站点
 
@@ -119,5 +121,5 @@ solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）
 
 - 官方明确 **禁止 0 点签到、禁止接口轮询**，默认 08:00，建议 7–10 点之间错峰。卡点 00:04 容易正好掉进第 26、89、113、199 这些扣分位。
 - Token 会过期，失效时通知提示「Token 无效」，重新抓一次即可。
-- 改了脚本想立刻生效：换成新的版本化文件名（如 `emos-sign-v114.js`）并同步改插件里的 `script-path`，比清 jsDelivr 缓存可靠。
+- 改了脚本想立刻生效：换成新的版本化文件名（如 `emos-sign-v115.js`）并同步改插件里的 `script-path`，比清 jsDelivr 缓存可靠。
 - 仅用于自己的账号，请勿批量小号。
