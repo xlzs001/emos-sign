@@ -10,8 +10,8 @@ Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条�
 
 | 线路 | 地址 |
 |---|---|
-| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-v113.plugin` |
-| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v113-raw.plugin` |
+| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@main/emos-sign-v114.plugin` |
+| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v114-raw.plugin` |
 
 两条线路是配套的：jsDelivr 版插件的 `script-path` 指向 jsDelivr 上的脚本，raw 版指向 raw 上的脚本，不要混用。
 
@@ -107,6 +107,7 @@ solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）
 
 ## 更新记录
 
+- **v1.1.4** 签到记录改为四路兜底（`/api/user` 的 sign → `rank/sign` → `pay/getUserSign` → `carrot/history`）+ 本机缓存；修掉 v1.1.3「已签但不显示签到时间」；修正 `...Z` 的时间后缀按字面时间解析（避免 00:04 被算成 08:04、跨天误判）；`/api/user` 顺手带回余额，少一次请求；日志打印每个来源的 HTTP 状态
 - **v1.1.3** 修正 cron 表达式缺双引号（定时任务可能不触发）、超时 60→300 秒；PUT 超时后自动核对是否其实已签；已签也显示位次奖惩；时区解析不再依赖引擎对 ISO 的宽容度
 - **v1.1.2** 用 `getUserSign` 替代排行榜查位次；通知新增签到时间、萝卜数、连续天数；429 时校验记录是否真属于今天
 - **v1.1.1** 修正签到判断：改为直接 `PUT /api/user/sign`，以 429 判定已签
@@ -117,5 +118,5 @@ solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）
 
 - 官方明确 **禁止 0 点签到、禁止接口轮询**，默认 08:00，建议 7–10 点之间错峰。卡点 00:04 容易正好掉进第 26、89、113、199 这些扣分位。
 - Token 会过期，失效时通知提示「Token 无效」，重新抓一次即可。
-- 改了脚本想立刻生效：换成新的版本化文件名（如 `emos-sign-v113.js`）并同步改插件里的 `script-path`，比清 jsDelivr 缓存可靠。
+- 改了脚本想立刻生效：换成新的版本化文件名（如 `emos-sign-v114.js`）并同步改插件里的 `script-path`，比清 jsDelivr 缓存可靠。
 - 仅用于自己的账号，请勿批量小号。
