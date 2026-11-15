@@ -16,5 +16,5 @@ notify = switch,true,tag=⑤ 签到结果通知
 showCarrot = switch,true,tag=显示萝卜余额,desc=签到后额外查询一次可用萝卜 会多 1 个请求
 
 [Script]
-cron "{cronExpression}" script-path=https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@v1.1.5/emos-sign-v115.js,tag="emos 定时签到",argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true
-generic script-path=https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@v1.1.5/emos-sign-v115.js,tag="emos 立即签到",img-url=checkmark.seal.fill,argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true
+cron "{cronExpression}" script-path=https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@v115/emos-sign-v115.js,tag="emos 定时签到",argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true
+generic script-path=https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@v115/emos-sign-v115.js,tag="emos 立即签到",img-url=checkmark.seal.fill,argument=[{token},{baseUrl},{cronExpression},{signContent},{notify},{showCarrot}],timeout=300,enable=true
