@@ -10,14 +10,14 @@ Loon → 配置 → 插件 → `+` → **从 URL 添加**，粘贴其中一条�
 
 | 线路 | 地址 |
 |---|---|
-| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@v115/emos-sign-v115.plugin` |
-| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v115-raw.plugin` |
+| **jsDelivr（推荐）** | `https://cdn.jsdelivr.net/gh/xlzs001/emos-sign@v116/emos-sign-v116.plugin` |
+| GitHub raw | `https://raw.githubusercontent.com/xlzs001/emos-sign/main/emos-sign-v116-raw.plugin` |
 
 两条线路是配套的：jsDelivr 版插件的 `script-path` 指向 jsDelivr 上的脚本，raw 版指向 raw 上的脚本，不要混用。
 
-> 地址用 **tag 固定**（`@v115`），不走 `@main`。jsDelivr 对 `@main` 的文件内容有约 12 小时缓存，
+> 地址用 **tag 固定**（`@v116`），不走 `@main`。jsDelivr 对 `@main` 的文件内容有约 12 小时缓存，
 > 同一个路径改了内容要等半天；新 tag、新文件名是全新引用，立刻生效。
-> 文件名别带 `1.1.2` 这种点号，jsDelivr 会当成版本号返回 404，统一写 `v115`。
+> 文件名别带 `1.1.2` 这种点号，jsDelivr 会当成版本号返回 404，统一写 `v116`。
 
 ## 可用站点
 
@@ -109,6 +109,7 @@ solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）
 
 ## 更新记录
 
+- **v1.1.6** 修复定时任务不触发：cron 变量去掉引号（`cron {cronExpression}`），此前 `cron "{cronExpression}"` 会被当成字面量、表达式非法后 Loon 静默跳过；默认时间改 09:10；日志加「上次运行」；余额查询延迟 0.8s、文案改「可用」
 - **v1.1.5** 日志精简：429 的 JSON 压缩成一行、去掉与通知重复的正文回显，正常情况只有 3 行（开始 / 429 / 完成），异常时才追加诊断行
 - **v1.1.4** 签到记录改为四路兜底（`/api/user` 的 sign → `rank/sign` → `pay/getUserSign` → `carrot/history`）+ 本机缓存；修掉 v1.1.3「已签但不显示签到时间」；修正 `...Z` 的时间后缀按字面时间解析（避免 00:04 被算成 08:04、跨天误判）；`/api/user` 顺手带回余额，少一次请求；日志打印每个来源的 HTTP 状态
 - **v1.1.3** 修正 cron 表达式缺双引号（定时任务可能不触发）、超时 60→300 秒；PUT 超时后自动核对是否其实已签；已签也显示位次奖惩；时区解析不再依赖引擎对 ISO 的宽容度
@@ -121,5 +122,5 @@ solici：今日第 9 名，+4 萝卜，连续 13 天（余额 1908）
 
 - 官方明确 **禁止 0 点签到、禁止接口轮询**，默认 08:00，建议 7–10 点之间错峰。卡点 00:04 容易正好掉进第 26、89、113、199 这些扣分位。
 - Token 会过期，失效时通知提示「Token 无效」，重新抓一次即可。
-- 改了脚本想立刻生效：换成新的版本化文件名（如 `emos-sign-v115.js`）并同步改插件里的 `script-path`，比清 jsDelivr 缓存可靠。
+- 改了脚本想立刻生效：换成新的版本化文件名（如 `emos-sign-v116.js`）并同步改插件里的 `script-path`，比清 jsDelivr 缓存可靠。
 - 仅用于自己的账号，请勿批量小号。
